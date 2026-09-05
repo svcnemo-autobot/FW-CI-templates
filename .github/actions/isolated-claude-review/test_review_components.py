@@ -209,7 +209,7 @@ class AnalyzerTests(RepositoryFixture):
         for value in (
             "http://inference.example.invalid",
             "https://user@inference.example.invalid",
-            "https://user:password@inference.example.invalid",
+            "https://user:password@inference.example.invalid",  # pragma: allowlist secret
         ):
             with self.subTest(value=value), self.assertRaisesRegex(
                 review_components.ReviewError, "credential-free HTTPS authority"

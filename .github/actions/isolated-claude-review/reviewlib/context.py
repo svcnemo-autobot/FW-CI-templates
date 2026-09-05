@@ -317,7 +317,7 @@ def build_context(args: argparse.Namespace) -> None:
         raise ReviewError("pr_number must be positive")
     if not args.review_id or len(args.review_id.encode()) > 200:
         raise ReviewError("review_id is required and bounded")
-    if args.review_mode not in {"manual", "automatic", "light", "strict"}:
+    if args.review_mode not in {"manual", "automatic"}:
         raise ReviewError("unsupported review_mode")
 
     repo = Path(args.repository_dir).resolve()

@@ -21,6 +21,11 @@ on:
         required: false
         default: manual
         type: string
+      review_profile:
+        description: Review policy profile used to isolate concurrent runs
+        required: false
+        default: default
+        type: string
       trigger_phrase:
         description: Exact normalized first-line command for manual review
         required: false
@@ -40,7 +45,7 @@ on:
       NVIDIA_INFERENCE_KEY: {required: true}
 
 concurrency:
-  group: isolated-claude-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: isolated-claude-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number }}-${{ inputs.review_mode }}-${{ inputs.review_profile }}
   cancel-in-progress: true
 
 jobs:

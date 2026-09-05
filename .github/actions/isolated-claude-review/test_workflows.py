@@ -21,6 +21,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKFLOWS = ROOT / ".github" / "workflows"
+FIXTURES = (
+    ROOT / ".github" / "actions" / "isolated-claude-review" / "fixtures"
+)
 FULL_HEADER = "Licensed under the Apache License, Version 2.0 (the \"License\")"
 
 
@@ -109,9 +112,13 @@ class WorkflowBoundaryTests(unittest.TestCase):
     def test_reference_composition_supports_manual_and_automatic_modes(self):
         value = self.text("_claude_review.yml")
         self.assertIn("review_mode", value)
+        self.assertIn("review_profile", value)
         self.assertIn("inputs.review_mode == 'manual'", value)
         self.assertIn("inputs.review_mode == 'automatic'", value)
         self.assertIn("concurrency:", value)
+        group = next(line for line in value.splitlines() if line.strip().startswith("group:"))
+        self.assertIn("${{ inputs.review_mode }}", group)
+        self.assertIn("${{ inputs.review_profile }}", group)
         self.assertIn("cancel-in-progress: true", value)
         self.assertIn("content=eyes", value)
         self.assertIn("publish-incomplete", value)
@@ -121,6 +128,43 @@ class WorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("_isolated_review_context.yml", value)
         self.assertIn("_isolated_review_analyze.yml", value)
         self.assertIn("_isolated_review_publish.yml", value)
+
+    def test_megatron_lm_light_and_strict_caller_contract(self):
+        fixture = FIXTURES / "megatron-lm-manual-callers.yml"
+        value = fixture.read_text(encoding="utf-8")
+        self.assertEqual(value.count("review_mode: manual"), 2)
+        workflow = "NVIDIA-NeMo/FW-CI-templates/.github/workflows/_claude_review.yml@"
+        self.assertEqual(value.count(f"uses: {workflow}"), 2)
+        self.assertIn("review_profile: light", value)
+        self.assertIn("review_profile: strict", value)
+        self.assertIn("trigger_phrase: /mcore review light", value)
+        self.assertIn("trigger_phrase: /mcore review strict", value)
+        self.assertNotIn("NVIDIA_INFERENCE", value)
+        self.assertNotIn("github_token", value)
+        self.assertNotIn("gh pr", value)
+        self.assertNotIn("Bash(", value)
+        self.assertNotIn("Read(", value)
+
+        composition = self.text("_claude_review.yml")
+        group = next(
+            line for line in composition.splitlines() if line.strip().startswith("group:")
+        )
+        light_group = group.replace("${{ inputs.review_mode }}", "manual").replace(
+            "${{ inputs.review_profile }}", "light"
+        )
+        strict_group = group.replace("${{ inputs.review_mode }}", "manual").replace(
+            "${{ inputs.review_profile }}", "strict"
+        )
+        self.assertNotEqual(light_group, strict_group)
+
+    def test_preflight_runs_isolated_review_tests(self):
+        value = self.text("pre-flight.yml")
+        self.assertIn("isolated-review-tests:", value)
+        self.assertIn("name: Isolated review tests", value)
+        self.assertIn(
+            "python3 -m unittest discover -s .github/actions/isolated-claude-review", value
+        )
+        self.assertIn("test_*.py", value)
 
     def test_reference_prompt_is_tool_compatible_and_model_cannot_publish(self):
         value = self.text("_isolated_review_analyze.yml")
